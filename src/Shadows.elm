@@ -1,4 +1,4 @@
-module Shadows exposing (..)
+module Shadows exposing (getShadows)
 
 import Array exposing (Array)
 import Maybe

@@ -1,4 +1,4 @@
-module Board exposing (..)
+module Board exposing (Board, initialModel, get, set, row, col)
 
 import Array exposing (Array)
 import Model exposing (Tile(..), Color(..))
