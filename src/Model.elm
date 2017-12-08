@@ -18,13 +18,17 @@ type Color
     | Black
 
 
-type alias Location =
-    ( Int, Int )
-
-
 type Selection
-    = Selection Location Tile
+    = Selection ( Int, Int ) Tile
 
 
 selection loc tile =
     Selection loc tile
+
+
+getSelectionLocation (Selection loc _) =
+    loc
+
+
+getSelectionPiece (Selection _ piece) =
+    piece

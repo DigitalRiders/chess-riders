@@ -2,18 +2,21 @@ module Shadows exposing (getShadows)
 
 import Array exposing (Array)
 import Maybe
-import Model exposing (Color(..), Location, Tile(..), Selection(Selection))
-import Board exposing (Board)
+import Model exposing (Color(..), Tile(..), Selection(Selection))
+import Board exposing (Board, Location)
 
 
+black : Int
 black =
     1
 
 
+white : Int
 white =
     -1
 
 
+pawn : Color -> Location -> Board -> List Location
 pawn color loc board =
     let
         direction =
@@ -70,8 +73,11 @@ pawn color loc board =
                                 Empty ->
                                     m
 
-                                _ ->
-                                    murderLocation :: m
+                                piece ->
+                                    if isFriendly piece color then
+                                        moves
+                                    else
+                                        murderLocation :: m
                 )
                 moves
                 murder
@@ -88,3 +94,32 @@ getShadows (Selection loc piece) board =
 
         _ ->
             []
+
+
+isFriendly : Tile -> Color -> Bool
+isFriendly piece friendlyColor =
+    let
+        eq color =
+            color == friendlyColor
+    in
+        case piece of
+            Empty ->
+                False
+
+            Pawn color ->
+                eq color
+
+            Rook color ->
+                eq color
+
+            Knight color ->
+                eq color
+
+            Bishop color ->
+                eq color
+
+            Queen color ->
+                eq color
+
+            King color ->
+                eq color

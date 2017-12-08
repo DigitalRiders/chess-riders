@@ -1,11 +1,11 @@
 module Main exposing (main)
 
 import Array exposing (Array)
-import Board exposing (Board)
+import Board exposing (Board, Location)
 import Html exposing (..)
-import Html.Attributes exposing (style)
+import Html.Attributes exposing (classList, style)
 import Html.Events exposing (onClick)
-import Model exposing (Tile(..), Color(..), Location, Selection, selection)
+import Model exposing (Tile(..), Color(..), Selection, selection)
 import Shadows
 
 
@@ -15,6 +15,7 @@ import Shadows
 type alias Model =
     { board : Board
     , selected : Maybe Selection
+    , turn : Color
     }
 
 
@@ -27,6 +28,7 @@ initialModel : Model
 initialModel =
     { board = Board.initialModel
     , selected = Nothing
+    , turn = White
     }
 
 
@@ -37,6 +39,7 @@ initialModel =
 type Msg
     = SetSelection (Maybe Selection)
     | RemoveSelection
+    | GoToTile Location
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -47,6 +50,28 @@ update msg model =
 
         RemoveSelection ->
             { model | selected = Nothing } ! []
+
+        GoToTile newLocation ->
+            let
+                newBoard =
+                    case model.selected of
+                        Nothing ->
+                            model.board
+
+                        Just selected ->
+                            Board.movePiece (Model.getSelectionLocation selected) newLocation model.board
+            in
+                { model | board = newBoard, selected = Nothing, turn = flipColor model.turn } ! []
+
+
+flipColor : Color -> Color
+flipColor color =
+    case color of
+        White ->
+            Black
+
+        Black ->
+            White
 
 
 
@@ -62,19 +87,19 @@ subscriptions model =
 -- VIEW
 
 
-size : Int
+size : Float
 size =
-    80
+    8
 
 
-sideSize : Int
+sideSize : Float
 sideSize =
-    50
+    7
 
 
-gutterWidth : Int
+gutterWidth : Float
 gutterWidth =
-    3
+    0.5
 
 
 view : Model -> Html Msg
@@ -91,6 +116,7 @@ view model =
         ]
 
 
+piecesRepresentation : Tile -> String
 piecesRepresentation piece =
     case piece of
         Rook White ->
@@ -153,19 +179,19 @@ viewBoard model =
         div []
             [ div
                 [ style
-                    [ ( "width", numberToPx (size * 8 + sideSize * 2) )
-                    , ( "height", numberToPx (size * 8 + sideSize * 2) )
+                    [ ( "width", numberToVh (size * 8 + sideSize * 2 + gutterWidth * 2) )
+                    , ( "height", numberToVh (size * 8 + sideSize * 2 + gutterWidth * 2) )
                     , ( "background", "#864534" )
                     , ( "position", "absolute" )
-                    , ( "top", numberToPx (-1 * sideSize + gutterWidth) )
-                    , ( "left", numberToPx (-1 * sideSize + gutterWidth) )
+                    , ( "top", numberToVh (-1 * (sideSize + gutterWidth)) )
+                    , ( "left", numberToVh (-1 * (sideSize + gutterWidth)) )
                     , ( "border-radius", "6px" )
                     ]
                 ]
                 []
             , div
                 [ style
-                    [ ( "border", numberToPx gutterWidth ++ " solid #f5ecab" )
+                    [ ( "border", numberToVh gutterWidth ++ " solid #f5ecab" )
                     , ( "display", "inline-block" )
                     , ( "border-radius", "3px" )
                     , ( "z-index", "100" )
@@ -178,7 +204,14 @@ viewBoard model =
                             (List.indexedMap
                                 (\j piece ->
                                     div
-                                        [ onClick (SetSelection <| setSelection ( i, j ) piece)
+                                        [ onClick
+                                            (if List.member ( i, j ) shadows then
+                                                GoToTile ( i, j )
+                                             else if model.turn == colorFromPiece piece then
+                                                (SetSelection <| setSelection ( i, j ) piece)
+                                             else
+                                                (SetSelection Nothing)
+                                            )
                                         , style
                                             [ ( "background"
                                               , if (i + j) % 2 == 0 then
@@ -186,13 +219,14 @@ viewBoard model =
                                                 else
                                                     "#864534"
                                               )
-                                            , ( "width", numberToPx size )
-                                            , ( "height", numberToPx size )
+                                            , ( "width", numberToVh size )
+                                            , ( "height", numberToVh size )
                                             , ( "display", "inline-block" )
                                             , ( "position", "relative" )
                                             , ( "padding", "5px" )
                                             , ( "box-sizing", "border-box" )
                                             ]
+                                        , classList [ ( "tile__shadow", List.member ( i, j ) shadows ) ]
                                         ]
                                         [ div
                                             [ style
@@ -200,25 +234,11 @@ viewBoard model =
                                                 , ( "top", "50%" )
                                                 , ( "left", "50%" )
                                                 , ( "transform", "translate(-50%, -50%)" )
-                                                , ( "font-size", "45px" )
+                                                , ( "font-size", "10vh" )
                                                 , ( "cursor", "pointer" )
                                                 ]
                                             ]
                                             [ text <| piecesRepresentation piece ]
-                                        , if List.member ( i, j ) shadows then
-                                            div
-                                                [ style
-                                                    [ ( "position", "absolute" )
-                                                    , ( "top", "50%" )
-                                                    , ( "left", "50%" )
-                                                    , ( "transform", "translate(-50%, -50%)" )
-                                                    , ( "font-size", "45px" )
-                                                    , ( "cursor", "pointer" )
-                                                    ]
-                                                ]
-                                                [ text "s" ]
-                                          else
-                                            text ""
                                         ]
                                 )
                                 (Array.toList side1)
@@ -229,38 +249,45 @@ viewBoard model =
             ]
 
 
+numberToVh num =
+    (toString num) ++ "vh"
+
+
+numberToPx : Int -> String
 numberToPx num =
     (toString num) ++ "px"
 
 
+colorFromPiece : Tile -> Color
 colorFromPiece piece =
     case piece of
         Pawn color ->
-            toString color
+            color
 
         Rook color ->
-            toString color
+            color
 
         Knight color ->
-            toString color
+            color
 
         Bishop color ->
-            toString color
+            color
 
         King color ->
-            toString color
+            color
 
         Queen color ->
-            toString color
+            color
 
         Empty ->
-            ""
+            White
 
 
 
 -- INIT
 
 
+main : Program Never Model Msg
 main =
     program
         { init = init
