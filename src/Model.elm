@@ -3,14 +3,17 @@ module Model exposing (..)
 import Array exposing (Array)
 
 
-type Tile
+type Piece
     = Pawn Color
     | Knight Color
     | Bishop Color
     | Rook Color
     | King Color
     | Queen Color
-    | Empty
+
+
+type alias Location =
+    ( Int, Int )
 
 
 type Color
@@ -18,12 +21,16 @@ type Color
     | Black
 
 
+type alias Board =
+    Array (Array (Maybe Piece))
+
+
 type Selection
-    = Selection ( Int, Int ) Tile
+    = Selection ( Int, Int ) Piece
 
 
-selection loc tile =
-    Selection loc tile
+selection loc piece =
+    Selection loc piece
 
 
 getSelectionLocation (Selection loc _) =

@@ -1,12 +1,13 @@
 module Main exposing (main)
 
 import Array exposing (Array)
-import Board exposing (Board, Location)
+import Board
 import Html exposing (..)
 import Html.Attributes exposing (classList, style)
 import Html.Events exposing (onClick)
-import Model exposing (Tile(..), Color(..), Selection, selection)
+import Model exposing (Piece(..), Board, Location, Color(..), Selection, selection)
 import Shadows
+import Piece
 
 
 -- MODEL
@@ -16,6 +17,7 @@ type alias Model =
     { board : Board
     , selected : Maybe Selection
     , turn : Color
+    , kingUnderAttack : Maybe Color
     }
 
 
@@ -29,6 +31,7 @@ initialModel =
     { board = Board.initialModel
     , selected = Nothing
     , turn = White
+    , kingUnderAttack = Nothing
     }
 
 
@@ -44,6 +47,11 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    checkKingIntegrity model
+        |> doUpdate msg
+
+
+doUpdate msg model =
     case msg of
         SetSelection maybeSelection ->
             { model | selected = maybeSelection } ! []
@@ -59,9 +67,20 @@ update msg model =
                             model.board
 
                         Just selected ->
-                            Board.movePiece (Model.getSelectionLocation selected) newLocation model.board
+                            Piece.move (Model.getSelectionLocation selected) newLocation model.board
             in
                 { model | board = newBoard, selected = Nothing, turn = flipColor model.turn } ! []
+
+
+checkKingIntegrity model =
+    model
+
+
+
+-- create a function to list all opposite pieces
+--  go through all opposite pieces
+-- each one check shadow and make sure none is equal to king's position
+-- if any has king's position then compromised
 
 
 flipColor : Color -> Color
@@ -116,57 +135,11 @@ view model =
         ]
 
 
-piecesRepresentation : Tile -> String
-piecesRepresentation piece =
-    case piece of
-        Rook White ->
-            "♖"
-
-        Rook Black ->
-            "♜"
-
-        Knight White ->
-            "♘"
-
-        Knight Black ->
-            "♞"
-
-        Bishop White ->
-            "♗"
-
-        Bishop Black ->
-            "♝"
-
-        Queen White ->
-            "♕"
-
-        Queen Black ->
-            "♛"
-
-        King White ->
-            "♔"
-
-        King Black ->
-            "♚"
-
-        Pawn White ->
-            "♙"
-
-        Pawn Black ->
-            "♟"
-
-        Empty ->
-            ""
-
-
 viewBoard : Model -> Html Msg
 viewBoard model =
     let
         setSelection loc piece =
-            if piece == Empty then
-                Nothing
-            else
-                Just <| selection loc piece
+            Just <| selection loc piece
 
         shadows =
             case model.selected of
@@ -202,15 +175,21 @@ viewBoard model =
                     (\i side1 ->
                         div [ style [ ( "line-height", "0" ) ] ]
                             (List.indexedMap
-                                (\j piece ->
+                                (\j maybePiece ->
                                     div
                                         [ onClick
                                             (if List.member ( i, j ) shadows then
                                                 GoToTile ( i, j )
-                                             else if model.turn == colorFromPiece piece then
-                                                (SetSelection <| setSelection ( i, j ) piece)
                                              else
-                                                (SetSelection Nothing)
+                                                case maybePiece of
+                                                    Nothing ->
+                                                        (SetSelection Nothing)
+
+                                                    Just piece ->
+                                                        if model.turn == colorFromPiece piece then
+                                                            (SetSelection <| setSelection ( i, j ) piece)
+                                                        else
+                                                            (SetSelection Nothing)
                                             )
                                         , style
                                             [ ( "background"
@@ -238,7 +217,14 @@ viewBoard model =
                                                 , ( "cursor", "pointer" )
                                                 ]
                                             ]
-                                            [ text <| piecesRepresentation piece ]
+                                            [ text <|
+                                                case maybePiece of
+                                                    Nothing ->
+                                                        ""
+
+                                                    Just piece ->
+                                                        Piece.toIcon piece
+                                            ]
                                         ]
                                 )
                                 (Array.toList side1)
@@ -258,7 +244,7 @@ numberToPx num =
     (toString num) ++ "px"
 
 
-colorFromPiece : Tile -> Color
+colorFromPiece : Piece -> Color
 colorFromPiece piece =
     case piece of
         Pawn color ->
@@ -278,9 +264,6 @@ colorFromPiece piece =
 
         Queen color ->
             color
-
-        Empty ->
-            White
 
 
 
